@@ -1,11 +1,11 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use matrix_criterion::gemm_parallel_with_threads;
-use matrix_criterion::{gemm, gemm_parallel, gemm_transpose};
+use matrix_criterion::{gemm, gemm_parallel, gemm_transpose, gemm_parallel_transpose};
 use rand::Rng;
 
 const SAMPLE_SIZE: usize = 25;
 const ITERATION_SIZE: usize = 5000;
-const ITERATION_STEP_SIZE: usize = 50;
+const ITERATION_STEP_SIZE: usize = 100;
 const THREAD_MAX_NUMBER_SIZE: usize = 15;
 
 fn generate_random_matrix(size: &usize) -> Vec<f64> {
@@ -18,6 +18,30 @@ fn generate_random_matrix(size: &usize) -> Vec<f64> {
     }
 
     matrix
+}
+
+fn gemm_transpose_parallel_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Matrix transpose and parallel");
+    group.sample_size(SAMPLE_SIZE);
+
+    for size in (800..ITERATION_SIZE).step_by(ITERATION_STEP_SIZE) {
+        let matrix1 = black_box(generate_random_matrix(&size));
+
+        let mut matrix2 = black_box(generate_random_matrix(&size));
+        let mut result = black_box(vec![0.0; size * size]);
+
+        group.bench_with_input(BenchmarkId::new("Mutlithreaded multiplication", size), &size, |b, &size| {
+            b.iter(|| gemm_parallel(&matrix1, &matrix2, &mut result, black_box(size)))
+        });
+        group.bench_with_input(BenchmarkId::new("Mutlithreaded transpose", size), &size, |b, &size| {
+            b.iter(|| {
+                let mut m2 = matrix2.clone();
+                gemm_parallel_transpose(&matrix1, &mut matrix2, &mut m2, black_box(size));
+            })
+        });
+    }
+
+    group.finish();
 }
 
 fn gemm_transpose_benchmark(c: &mut Criterion) {
@@ -101,5 +125,6 @@ fn gemm_benchmark_thread_pools(c: &mut Criterion) {
 }
 
 //criterion_group!(benches, gemm_benchmark, gemm_benchmark_thread_pools);
-criterion_group!(benches, gemm_transpose_benchmark);
+//criterion_group!(benches, gemm_transpose_benchmark);
+criterion_group!(benches, gemm_transpose_parallel_benchmark);
 criterion_main!(benches);
