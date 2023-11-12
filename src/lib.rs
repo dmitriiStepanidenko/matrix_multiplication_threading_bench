@@ -1,8 +1,44 @@
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 
+pub fn gemm_transpose<'a, T>(
+    matrix1: &'a [T],
+    matrix2: &'a mut [T],
+    result: &'a mut [T],
+    mat_size: usize,
+) -> &'a mut [T]
+where
+    T: PartialOrd
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>
+        + std::ops::AddAssign
+        + Copy,
+{
+    for i in 1..mat_size {
+        for j in i..mat_size {
+            matrix2.swap(i * mat_size + j, j * mat_size + i);
+        }
+    }
 
-pub fn gemm<T>(matrix1: &[T], matrix2: &[T], result: &mut [T], mat_size: usize)
+    for i in 0..mat_size {
+        for j in 0..mat_size {
+            let c_idx = i * mat_size + j;
+            for k in 0..mat_size {
+                let a_idx = i * mat_size + k;
+                let b_idx = j * mat_size + k;
+                result[c_idx] += matrix1[a_idx] * matrix2[b_idx];
+            }
+        }
+    }
+    return result;
+}
+
+pub fn gemm< T>(
+    matrix1: & [T],
+    matrix2: & [T],
+    result: & mut [T],
+    mat_size: usize,
+) 
 where
     T: PartialOrd
         + std::ops::Mul<Output = T>
@@ -86,4 +122,3 @@ where
             }
         });
 }
-
